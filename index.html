@@ -1,1 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f4f8">
+  <title>Daybook</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <a class="brand" href="#home">Daybook</a>
+      <nav class="navigation" aria-label="Main navigation">
+        <a href="#home" data-page-link="home" class="nav-link active" aria-current="page">Overview</a>
+        <a href="#add" data-page-link="add" class="nav-link">Add a plan</a>
+      </nav>
+      <p class="storage-note">Saved in this browser</p>
+      <div class="theme-setting">
+        <label for="theme">Appearance</label>
+        <select id="theme">
+          <option value="system">System</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </div>
+    </aside>
 
+    <main class="main">
+      <div id="storage-error" class="error-banner" role="alert" hidden></div>
+
+      <section id="home-page" class="page">
+        <header class="page-heading">
+          <div><h1>Overview</h1><p>Keep track of your upcoming assignments and events.</p></div>
+          <a href="#add" class="button button-primary">Add a plan</a>
+        </header>
+
+        <div class="summary-strip">
+          <div><strong id="upcoming-count">0</strong><span>Upcoming plans</span></div>
+          <div><strong id="assignment-count">0</strong><span>Assignments</span></div>
+          <div><strong id="event-count">0</strong><span>Events</span></div>
+        </div>
+
+        <div class="dashboard-grid">
+          <section class="panel upcoming-panel" aria-labelledby="upcoming-title">
+            <h2 id="upcoming-title">Upcoming plans</h2>
+            <p class="panel-description">Your upcoming assignments and events.</p>
+            <div id="upcoming-list" class="upcoming-list"></div>
+          </section>
+
+          <section class="panel calendar-panel" aria-labelledby="calendar-title">
+            <h2 id="calendar-title">Calendar</h2>
+            <p class="panel-description">Select a day to see its plans.</p>
+            <div class="calendar">
+              <div class="calendar-toolbar"><h3 id="calendar-month"></h3><div class="calendar-controls"><button id="previous-month" type="button" aria-label="Previous month">‹</button><button id="next-month" type="button" aria-label="Next month">›</button></div></div>
+              <div class="weekdays" aria-hidden="true"><span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span></div>
+              <div id="calendar-grid" class="calendar-grid" aria-label="Calendar days"></div>
+              <div class="calendar-legend"><span><i class="legend-dot assignment-dot"></i> Assignment</span><span><i class="legend-dot event-dot"></i> Event</span></div>
+            </div>
+            <div class="day-detail"><h3 id="selected-date"></h3><div id="day-list"></div></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="add-page" class="page" hidden>
+        <header class="page-heading"><div><h1>Add a plan</h1><p>Add an assignment or event to your calendar.</p></div></header>
+        <section class="panel form-panel" aria-labelledby="form-title">
+          <h2 id="form-title">Plan details</h2>
+          <form id="plan-form">
+            <fieldset><legend>Type</legend><div class="type-options"><label class="type-option"><input type="radio" name="type" value="assignment" checked> Assignment</label><label class="type-option"><input type="radio" name="type" value="event"> Event</label></div></fieldset>
+            <label for="title">Name <span>*</span></label><input id="title" name="title" type="text" maxlength="120" required>
+            <div class="form-row"><div><label for="date">Date <span>*</span></label><input id="date" name="date" type="date" required></div><div><label for="time">Time <small>(optional)</small></label><input id="time" name="time" type="time"></div></div>
+            <label for="notes">Details <small>(optional)</small></label><textarea id="notes" name="notes" rows="4" maxlength="1000"></textarea>
+            <div class="form-actions"><span>* Required fields</span><button class="button button-primary" type="submit">Save plan</button></div>
+          </form>
+        </section>
+      </section>
+      <div id="announcement" class="sr-only" aria-live="polite"></div>
+    </main>
+  </div>
+</body>
+</html>
