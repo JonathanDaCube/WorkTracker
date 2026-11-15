@@ -1,7 +1,6 @@
-"use strict";
+import { setupPlanner } from "./shared.js";
+import { plansRef, showError, clearError } from "./firebase-client.js";
 
-const STORAGE_KEY = "daybook-plans-v1";
-const THEME_KEY = "daybook-theme-v1";
 const $ = (selector) => document.querySelector(selector);
 const localDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 const parseDate = (value) => {
@@ -9,74 +8,11 @@ const parseDate = (value) => {
   return new Date(year, month - 1, day);
 };
 const today = () => localDate(new Date());
-let selectedDate = today();
+const requestedDate = new URLSearchParams(location.search).get("date");
+let selectedDate = requestedDate && /^\d{4}-\d{2}-\d{2}$/.test(requestedDate) && localDate(parseDate(requestedDate)) === requestedDate ? requestedDate : today();
 let displayedMonth = new Date(parseDate(selectedDate).getFullYear(), parseDate(selectedDate).getMonth(), 1);
 let plans = [];
-let storageAvailable = true;
-
-function showStorageError(message) {
-  const banner = $("#storage-error");
-  banner.textContent = message;
-  banner.hidden = false;
-}
-
-try {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    const parsed = JSON.parse(stored);
-    if (!Array.isArray(parsed)) throw new Error("Invalid saved plans");
-    plans = parsed;
-  }
-} catch (error) {
-  storageAvailable = false;
-  showStorageError("Your saved plans could not be loaded. Saving is disabled to avoid overwriting them.");
-}
-
-const themeSelect = $("#theme");
-let currentTheme = "system";
-try {
-  const savedTheme = localStorage.getItem(THEME_KEY);
-  if (["system", "light", "dark"].includes(savedTheme)) currentTheme = savedTheme;
-} catch (error) {
-  showStorageError("Your appearance setting could not be loaded.");
-}
-themeSelect.value = currentTheme;
-document.documentElement.dataset.theme = currentTheme;
-themeSelect.addEventListener("change", () => {
-  try {
-    localStorage.setItem(THEME_KEY, themeSelect.value);
-    currentTheme = themeSelect.value;
-    document.documentElement.dataset.theme = currentTheme;
-  } catch (error) {
-    themeSelect.value = currentTheme;
-    showStorageError("Your appearance setting could not be saved.");
-  }
-});
-
-function savePlans(nextPlans) {
-  if (!storageAvailable) return false;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(nextPlans));
-    plans = nextPlans;
-    return true;
-  } catch (error) {
-    showStorageError("Your changes could not be saved. Check your browser storage settings and try again.");
-    return false;
-  }
-}
-
-function showPage() {
-  const page = location.hash === "#add" ? "add" : "home";
-  $("#home-page").hidden = page !== "home";
-  $("#add-page").hidden = page !== "add";
-  document.querySelectorAll("[data-page-link]").forEach((link) => {
-    const active = link.dataset.pageLink === page;
-    link.classList.toggle("active", active);
-    if (active) link.setAttribute("aria-current", "page");
-    else link.removeAttribute("aria-current");
-  });
-  document.title = `${page === "add" ? "Add a plan" : "Overview"} — Daybook`;
-}
+let deletePlan;
 
 function formatTime(time) {
   if (!time) return "";
@@ -123,11 +59,16 @@ function makePlanItem(plan, detailed = false) {
   remove.className = "delete-button";
   remove.textContent = "×";
   remove.setAttribute("aria-label", `Delete ${plan.title}`);
-  remove.addEventListener("click", () => {
+  remove.addEventListener("click", async () => {
     if (!confirm(`Delete "${plan.title}"?`)) return;
-    if (savePlans(plans.filter((entry) => entry.id !== plan.id))) {
-      render();
+    remove.disabled = true;
+    clearError();
+    try {
+      await deletePlan(plan.id);
       $("#announcement").textContent = `${plan.title} deleted.`;
+    } catch (error) {
+      showError(error);
+      remove.disabled = false;
     }
   });
   item.append(tile, content, remove);
@@ -152,7 +93,7 @@ function renderUpcoming() {
     const text = document.createElement("p");
     text.textContent = "Add an assignment or event to get started.";
     const link = document.createElement("a");
-    link.href = "#add";
+    link.href = "./newItem/";
     link.textContent = "Add a plan";
     empty.append(icon, title, text, link);
     list.append(empty);
@@ -228,34 +169,11 @@ $("#next-month").addEventListener("click", () => {
   selectedDate = localDate(displayedMonth);
   renderCalendar();
 });
-$("#plan-form").addEventListener("submit", (event) => {
-  event.preventDefault();
-  const form = event.currentTarget;
-  const data = new FormData(form);
-  const title = String(data.get("title")).trim();
-  if (!title) {
-    $("#title").setCustomValidity("Please enter a name for your plan.");
-    $("#title").reportValidity();
-    return;
-  }
-  const plan = {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    type: String(data.get("type")),
-    title,
-    date: String(data.get("date")),
-    time: String(data.get("time")),
-    notes: String(data.get("notes")).trim()
-  };
-  if (!savePlans([...plans, plan])) return;
-  selectedDate = plan.date;
-  const date = parseDate(plan.date);
-  displayedMonth = new Date(date.getFullYear(), date.getMonth(), 1);
-  form.reset();
-  render();
-  $("#announcement").textContent = `${plan.title} saved.`;
-  location.hash = "home";
+setupPlanner((client, user) => {
+  const collection = plansRef(client, user.uid);
+  deletePlan = (id) => client.dbApi.deleteDoc(client.dbApi.doc(collection, id));
+  return client.dbApi.onSnapshot(collection, (snapshot) => {
+    plans = snapshot.docs.map((entry) => ({ ...entry.data(), id: entry.id }));
+    render();
+  }, showError);
 });
-$("#title").addEventListener("input", (event) => event.currentTarget.setCustomValidity(""));
-window.addEventListener("hashchange", showPage);
-showPage();
-render();
