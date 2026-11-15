@@ -34,8 +34,11 @@
             <label for="notes">Details <small>(optional)</small></label><textarea id="notes" name="notes" rows="4" maxlength="1000"></textarea>
             <fieldset>
               <legend>Share with tags <small>(optional)</small></legend>
-              <p class="form-help">Anyone who joins a selected tag can see and delete this plan. Leave all tags unchecked to keep it private.</p>
-              <div id="tag-options"><p class="form-help">Loading tags...</p></div>
+              <p class="form-help">Anyone who joins an applied tag can see and delete this plan. Apply no tags to keep it private.</p>
+              <div class="tag-options">
+                <div class="tag-option-row"><strong>Applied:</strong><div id="applied-tags" class="tag-option-list"><span>None</span></div></div>
+                <div class="tag-option-row"><strong>Not applied:</strong><div id="available-tags" class="tag-option-list"><span>Loading tags...</span></div></div>
+              </div>
               <a href="../settings/">Manage your tags</a>
             </fieldset>
             <div class="form-actions"><span>* Required fields</span><button class="button button-primary" type="submit" disabled>Save plan</button></div>
