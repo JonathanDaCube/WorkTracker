@@ -4,10 +4,11 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const path = require("node:path");
 
-async function page(fail = false) {
+async function page(fail = false, selectedTags = []) {
   const submit = { disabled: true };
   const form = { querySelector: () => submit };
   const title = { addEventListener() {}, setCustomValidity() {}, reportValidity() {} };
+  const options = { querySelectorAll: () => [], replaceChildren() {}, append() {} };
   const saved = [];
   const errors = [];
   let redirect;
@@ -20,9 +21,14 @@ async function page(fail = false) {
     }
   };
   const context = vm.createContext({
-    document: { querySelector: (selector) => selector === "#plan-form" ? form : title },
+    document: {
+      querySelector: (selector) => selector === "#plan-form" ? form : selector === "#tag-options" ? options : title,
+      createElement: () => ({ append() {} }),
+      createTextNode: () => ({})
+    },
     FormData: class {
       get(key) { return { title: "  Project  ", type: "assignment", date: "2099-12-01", time: "09:30", notes: "  Details  " }[key]; }
+      getAll() { return selectedTags; }
     },
     location: { assign: (value) => { redirect = value; } },
     console
@@ -36,9 +42,13 @@ async function page(fail = false) {
     this.setExport("clearError", () => {});
     this.setExport("url", () => "/WorkTracker/");
   }, { context });
+  const tags = new vm.SyntheticModule(["subscribeTags", "saveSharedPlan"], function () {
+    this.setExport("subscribeTags", (_client, _user, callback) => { callback(["math", "science"]); return () => {}; });
+    this.setExport("saveSharedPlan", async (_client, user, plan, selected) => { saved.push({ user: user.uid, plan, tags: selected }); });
+  }, { context });
   const source = fs.readFileSync(path.join(__dirname, "..", "new-item.js"), "utf8");
   const module = new vm.SourceTextModule(source, { context });
-  await module.link((specifier) => specifier === "./shared.js" ? shared : firebase);
+  await module.link((specifier) => specifier === "./shared.js" ? shared : specifier === "./tags.js" ? tags : firebase);
   await module.evaluate();
   return { form, submit, saved, errors, get redirect() { return redirect; } };
 }
@@ -58,4 +68,18 @@ test("keeps the form available when saving fails", async () => {
   assert.deepEqual(app.errors, ["Save failed"]);
   assert.equal(app.submit.disabled, false);
   assert.equal(app.redirect, undefined);
+});
+
+test("shares a plan with the selected tags", async () => {
+  const app = await page(false, ["math", "science"]);
+  await app.form.onsubmit({ preventDefault() {} });
+  assert.equal(app.saved[0].user, "user-1");
+  assert.deepEqual(app.saved[0].tags, ["math", "science"]);
+});
+
+test("does not save a plan to a tag the user has left", async () => {
+  const app = await page(false, ["unknown"]);
+  await app.form.onsubmit({ preventDefault() {} });
+  assert.equal(app.saved.length, 0);
+  assert.deepEqual(app.errors, ["Your tags changed. Please select your tags again."]);
 });

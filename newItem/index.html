@@ -15,6 +15,7 @@
       <nav class="navigation" aria-label="Main navigation">
         <a href="../" class="nav-link">Overview</a>
         <a href="./" class="nav-link active" aria-current="page">Add a plan</a>
+        <a href="../settings/" class="nav-link">Settings</a>
       </nav>
       <p class="storage-note" id="account"></p>
       <button class="text-button" id="signout" type="button">Sign out</button>
@@ -31,6 +32,12 @@
             <label for="title">Name <span>*</span></label><input id="title" name="title" type="text" maxlength="120" required>
             <div class="form-row"><div><label for="date">Date <span>*</span></label><input id="date" name="date" type="date" required></div><div><label for="time">Time <small>(optional)</small></label><input id="time" name="time" type="time"></div></div>
             <label for="notes">Details <small>(optional)</small></label><textarea id="notes" name="notes" rows="4" maxlength="1000"></textarea>
+            <fieldset>
+              <legend>Share with tags <small>(optional)</small></legend>
+              <p class="form-help">Anyone who joins a selected tag can see and delete this plan. Leave all tags unchecked to keep it private.</p>
+              <div id="tag-options"><p class="form-help">Loading tags...</p></div>
+              <a href="../settings/">Manage your tags</a>
+            </fieldset>
             <div class="form-actions"><span>* Required fields</span><button class="button button-primary" type="submit" disabled>Save plan</button></div>
           </form>
         </section>
