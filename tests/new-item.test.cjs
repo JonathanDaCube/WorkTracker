@@ -4,14 +4,26 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const path = require("node:path");
 
-async function page(fail = false, selectedTags = []) {
+async function page(fail = false) {
+  class Element {
+    constructor() { this.children = []; this.handlers = {}; }
+    append(...children) { this.children.push(...children); }
+    replaceChildren(...children) { this.children = children; }
+    hasChildNodes() { return this.children.length > 0; }
+    addEventListener(type, handler) { this.handlers[type] = handler; }
+    setAttribute() {}
+    focus() { this.focused = true; }
+    click() { this.handlers.click(); }
+  }
   const submit = { disabled: true };
   const form = { querySelector: () => submit };
   const title = { addEventListener() {}, setCustomValidity() {}, reportValidity() {} };
-  const options = { querySelectorAll: () => [], replaceChildren() {}, append() {} };
+  const applied = new Element();
+  const available = new Element();
   const saved = [];
   const errors = [];
   let redirect;
+  let updateTags;
   const client = {
     dbApi: {
       async addDoc(collection, plan) {
@@ -22,13 +34,11 @@ async function page(fail = false, selectedTags = []) {
   };
   const context = vm.createContext({
     document: {
-      querySelector: (selector) => selector === "#plan-form" ? form : selector === "#tag-options" ? options : title,
-      createElement: () => ({ append() {} }),
-      createTextNode: () => ({})
+      querySelector: (selector) => ({ "#plan-form": form, "#title": title, "#applied-tags": applied, "#available-tags": available })[selector],
+      createElement: () => new Element()
     },
     FormData: class {
       get(key) { return { title: "  Project  ", type: "assignment", date: "2099-12-01", time: "09:30", notes: "  Details  " }[key]; }
-      getAll() { return selectedTags; }
     },
     location: { assign: (value) => { redirect = value; } },
     console
@@ -43,14 +53,14 @@ async function page(fail = false, selectedTags = []) {
     this.setExport("url", () => "/WorkTracker/");
   }, { context });
   const tags = new vm.SyntheticModule(["subscribeTags", "saveSharedPlan"], function () {
-    this.setExport("subscribeTags", (_client, _user, callback) => { callback(["math", "science"]); return () => {}; });
+    this.setExport("subscribeTags", (_client, _user, callback) => { updateTags = callback; callback(["math", "science"]); return () => {}; });
     this.setExport("saveSharedPlan", async (_client, user, plan, selected) => { saved.push({ user: user.uid, plan, tags: selected }); });
   }, { context });
   const source = fs.readFileSync(path.join(__dirname, "..", "new-item.js"), "utf8");
   const module = new vm.SourceTextModule(source, { context });
   await module.link((specifier) => specifier === "./shared.js" ? shared : specifier === "./tags.js" ? tags : firebase);
   await module.evaluate();
-  return { form, submit, saved, errors, get redirect() { return redirect; } };
+  return { form, submit, saved, errors, applied, available, updateTags, get redirect() { return redirect; } };
 }
 
 test("saves a plan under the signed-in user and opens its calendar day", async () => {
@@ -71,15 +81,32 @@ test("keeps the form available when saving fails", async () => {
 });
 
 test("shares a plan with the selected tags", async () => {
-  const app = await page(false, ["math", "science"]);
+  const app = await page();
+  app.available.children.find((button) => button.textContent === "math").click();
+  app.available.children.find((button) => button.textContent === "science").click();
   await app.form.onsubmit({ preventDefault() {} });
   assert.equal(app.saved[0].user, "user-1");
-  assert.deepEqual(app.saved[0].tags, ["math", "science"]);
+  assert.deepEqual(Array.from(app.saved[0].tags), ["math", "science"]);
 });
 
-test("does not save a plan to a tag the user has left", async () => {
-  const app = await page(false, ["unknown"]);
+test("clicking a tag moves it between groups and retains focus", async () => {
+  const app = await page();
+  app.available.children.find((button) => button.textContent === "math").click();
+  assert.equal(app.applied.children[0].textContent, "math");
+  assert.equal(app.applied.children[0].focused, true);
+  assert.deepEqual(app.available.children.map((button) => button.textContent), ["science"]);
+  app.applied.children[0].click();
+  assert.equal(app.applied.children[0].textContent, "None");
+  assert.deepEqual(app.available.children.map((button) => button.textContent), ["math", "science"]);
+  assert.equal(app.available.children[0].focused, true);
+});
+
+test("removes an applied tag and warns when membership changes", async () => {
+  const app = await page();
+  app.available.children.find((button) => button.textContent === "math").click();
+  app.updateTags(["science"]);
+  assert.equal(app.applied.children[0].textContent, "None");
+  assert.deepEqual(app.errors, ["An applied tag is no longer available and was removed."]);
   await app.form.onsubmit({ preventDefault() {} });
-  assert.equal(app.saved.length, 0);
-  assert.deepEqual(app.errors, ["Your tags changed. Please select your tags again."]);
+  assert.equal(app.saved[0].collection, "users/user-1/plans");
 });

@@ -8,30 +8,51 @@ title.addEventListener("input", () => title.setCustomValidity(""));
 
 setupPlanner((client, user) => {
   const submit = form.querySelector('button[type="submit"]');
-  const options = document.querySelector("#tag-options");
+  const applied = document.querySelector("#applied-tags");
+  const available = document.querySelector("#available-tags");
   let availableTags = [];
+  const selectedTags = new Set();
   let saving = false;
+  const renderTags = (focusTag) => {
+    applied.replaceChildren();
+    available.replaceChildren();
+    let focusButton;
+    for (const tag of availableTags) {
+      const selected = selectedTags.has(tag);
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "tag-option";
+      button.textContent = tag;
+      button.disabled = saving;
+      button.setAttribute("aria-label", `${selected ? "Remove" : "Apply"} tag ${tag}`);
+      button.addEventListener("click", () => {
+        if (selectedTags.has(tag)) selectedTags.delete(tag);
+        else selectedTags.add(tag);
+        renderTags(tag);
+      });
+      (selected ? applied : available).append(button);
+      if (tag === focusTag) focusButton = button;
+    }
+    for (const group of [applied, available]) {
+      if (!group.hasChildNodes()) {
+        const empty = document.createElement("span");
+        empty.textContent = "None";
+        group.append(empty);
+      }
+    }
+    if (focusButton) focusButton.focus();
+  };
   const stop = subscribeTags(client, user, (tags) => {
-    const checked = new Set([...options.querySelectorAll('input:checked')].map((input) => input.value));
     availableTags = tags;
-    options.replaceChildren();
-    options.className = "tag-options";
-    if (!tags.length) {
-      const empty = document.createElement("p");
-      empty.className = "form-help";
-      empty.textContent = "You haven't joined any tags.";
-      options.append(empty);
+    let removed = false;
+    for (const tag of selectedTags) {
+      if (!tags.includes(tag)) {
+        selectedTags.delete(tag);
+        removed = true;
+      }
     }
-    for (const tag of tags) {
-      const label = document.createElement("label");
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.name = "tags";
-      checkbox.value = tag;
-      checkbox.checked = checked.has(tag);
-      label.append(checkbox, document.createTextNode(` ${tag}`));
-      options.append(label);
-    }
+    if (removed) showError(new Error("An applied tag is no longer available and was removed."));
+    renderTags();
     submit.disabled = saving;
   });
   form.onsubmit = async (event) => {
@@ -51,13 +72,10 @@ setupPlanner((client, user) => {
       time: String(data.get("time")),
       notes: String(data.get("notes")).trim()
     };
-    const tags = data.getAll("tags");
-    if (tags.some((tag) => !availableTags.includes(tag))) {
-      showError(new Error("Your tags changed. Please select your tags again."));
-      return;
-    }
+    const tags = availableTags.filter((tag) => selectedTags.has(tag));
     saving = true;
     submit.disabled = true;
+    renderTags();
     clearError();
     try {
       if (tags.length) await saveSharedPlan(client, user, plan, tags);
@@ -67,6 +85,7 @@ setupPlanner((client, user) => {
       showError(error);
       saving = false;
       submit.disabled = false;
+      renderTags();
     }
   };
   return () => { stop(); submit.disabled = true; form.onsubmit = null; };
