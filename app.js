@@ -1,5 +1,6 @@
 import { setupPlanner } from "./shared.js";
 import { plansRef, showError, clearError } from "./firebase-client.js";
+import { subscribeSharedPlans, deleteSharedPlan } from "./tags.js";
 
 const $ = (selector) => document.querySelector(selector);
 const localDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -48,6 +49,12 @@ function makePlanItem(plan, detailed = false) {
   meta.append(badge);
   if (plan.time) meta.append(document.createTextNode(`  ·  ${formatTime(plan.time)}`));
   content.append(title, meta);
+  if (plan.shared) {
+    const tags = document.createElement("div");
+    tags.className = "plan-tags";
+    tags.textContent = `Shared: ${plan.tags.join(", ")}`;
+    content.append(tags);
+  }
   if (detailed && plan.notes) {
     const notes = document.createElement("p");
     notes.className = "plan-notes";
@@ -60,11 +67,12 @@ function makePlanItem(plan, detailed = false) {
   remove.textContent = "×";
   remove.setAttribute("aria-label", `Delete ${plan.title}`);
   remove.addEventListener("click", async () => {
-    if (!confirm(`Delete "${plan.title}"?`)) return;
+    const warning = plan.shared ? " This removes it for everyone." : "";
+    if (!confirm(`Delete "${plan.title}"?${warning}`)) return;
     remove.disabled = true;
     clearError();
     try {
-      await deletePlan(plan.id);
+      await deletePlan(plan);
       $("#announcement").textContent = `${plan.title} deleted.`;
     } catch (error) {
       showError(error);
@@ -171,9 +179,22 @@ $("#next-month").addEventListener("click", () => {
 });
 setupPlanner((client, user) => {
   const collection = plansRef(client, user.uid);
-  deletePlan = (id) => client.dbApi.deleteDoc(client.dbApi.doc(collection, id));
-  return client.dbApi.onSnapshot(collection, (snapshot) => {
-    plans = snapshot.docs.map((entry) => ({ ...entry.data(), id: entry.id }));
+  let privatePlans = [];
+  let sharedPlans = [];
+  deletePlan = (plan) => plan.shared
+    ? deleteSharedPlan(client, plan)
+    : client.dbApi.deleteDoc(client.dbApi.doc(collection, plan.id));
+  const update = () => {
+    plans = [...privatePlans, ...sharedPlans];
     render();
+  };
+  const stopPrivate = client.dbApi.onSnapshot(collection, (snapshot) => {
+    privatePlans = snapshot.docs.map((entry) => ({ ...entry.data(), id: entry.id, shared: false }));
+    update();
   }, showError);
+  const stopShared = subscribeSharedPlans(client, user, (value) => {
+    sharedPlans = value;
+    update();
+  });
+  return () => { stopPrivate(); stopShared(); };
 });

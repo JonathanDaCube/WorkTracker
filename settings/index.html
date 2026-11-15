@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f4f8">
+  <title>Settings — Daybook</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../settings.js" type="module"></script>
+</head>
+<body data-page="settings">
+  <div class="app">
+    <aside class="sidebar">
+      <a class="brand" href="../">Daybook</a>
+      <nav class="navigation" aria-label="Main navigation">
+        <a href="../" class="nav-link">Overview</a>
+        <a href="../newItem/" class="nav-link">Add a plan</a>
+        <a href="./" class="nav-link active" aria-current="page">Settings</a>
+      </nav>
+      <p class="storage-note" id="account"></p>
+      <button class="text-button" id="signout" type="button">Sign out</button>
+      <div class="theme-setting"><label for="theme">Appearance</label><select id="theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+    </aside>
+    <main class="main">
+      <div id="storage-error" class="error-banner" role="alert" hidden></div>
+      <header class="page-heading"><div><h1>Settings</h1><p>Manage your tags.</p></div></header>
+      <section class="panel form-panel" aria-labelledby="tags-title">
+        <h2 id="tags-title">Your tags</h2>
+        <p class="form-help">Anyone can join a tag by name. Members can see and delete all plans shared with it, so do not use tags for private information.</p>
+        <form id="tag-form">
+          <label for="tag-name">Join a tag</label>
+          <input id="tag-name" name="tag" maxlength="40" required placeholder="e.g. class-2026">
+          <p class="form-help">Use letters, numbers, hyphens or underscores. Tags are case-insensitive.</p>
+          <button class="button" type="submit" disabled>Join tag</button>
+        </form>
+        <h3 class="tags-heading">Joined tags</h3>
+        <div id="tags-list"><p class="form-help">Loading tags...</p></div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

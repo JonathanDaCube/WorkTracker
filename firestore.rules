@@ -1,11 +1,36 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+    function myTags() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('tags', []);
+    }
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if signedIn() && request.auth.uid == userId;
       match /plans/{planId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if signedIn() && request.auth.uid == userId;
       }
+    }
+    match /sharedPlans/{planId} {
+      allow get: if signedIn() && (resource == null || resource.data.tags.hasAny(myTags()));
+      allow delete: if signedIn() && resource.data.tags.hasAny(myTags());
+      allow create: if signedIn()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.tags is list
+        && request.resource.data.tags.size() > 0
+        && request.resource.data.tags.hasOnly(myTags());
+    }
+    match /tags/{tag}/plans/{planId} {
+      allow read: if signedIn() && tag in myTags();
+      allow create: if signedIn()
+        && request.resource.data.keys().size() == 0
+        && getAfter(/databases/$(database)/documents/sharedPlans/$(planId)).data.createdBy == request.auth.uid
+        && tag in getAfter(/databases/$(database)/documents/sharedPlans/$(planId)).data.tags;
+      allow delete: if signedIn()
+        && get(/databases/$(database)/documents/sharedPlans/$(planId)).data.tags.hasAny(myTags())
+        && tag in get(/databases/$(database)/documents/sharedPlans/$(planId)).data.tags;
     }
   }
 }

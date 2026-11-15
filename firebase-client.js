@@ -16,6 +16,8 @@ export async function connectFirebase() {
 export const url = (path = "") => new URL(path, import.meta.url).href;
 export const profileRef = (client, uid) => client.dbApi.doc(client.db, "users", uid);
 export const plansRef = (client, uid) => client.dbApi.collection(client.db, "users", uid, "plans");
+export const sharedPlansRef = (client) => client.dbApi.collection(client.db, "sharedPlans");
+export const tagPlansRef = (client, tag) => client.dbApi.collection(client.db, "tags", tag, "plans");
 export function showError(error) {
   const banner = document.querySelector("#storage-error");
   banner.textContent = error instanceof Error ? error.message : String(error);
