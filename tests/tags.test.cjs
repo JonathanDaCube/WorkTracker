@@ -68,3 +68,10 @@ test("shared creation and deletion update every tag index in one batch", async (
   await api.deleteSharedPlan(client, { id: "p", tags: ["math", "science"] });
   assert.deepEqual(writes.map((entry) => entry.ref || entry.action), ["sharedPlans/p", "tags/math/plans/p", "tags/science/plans/p", "commit"]);
 });
+
+test("capitalized tags with spaces retain their exact shared index path", async () => {
+  const { api, client, writes } = await setup();
+  await api.saveSharedPlan(client, { uid: "u" }, { title: "Test" }, ["Math Class"]);
+  assert.equal(writes[1].ref, "tags/Math Class/plans/new-id");
+  assert.equal(writes[0].data.tags[0], "Math Class");
+});

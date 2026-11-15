@@ -54,11 +54,11 @@ async function setup(initialTags = []) {
   return { form, input, list, get tags() { return tags; } };
 }
 
-test("joining normalizes a tag and leaving removes it", async () => {
+test("joining preserves capitalization and spaces, and leaving removes the tag", async () => {
   const app = await setup();
-  app.input.value = "  Math-Class  ";
+  app.input.value = "  Math Class  ";
   await app.form.onsubmit({ preventDefault() {} });
-  assert.deepEqual(app.tags, ["math-class"]);
+  assert.deepEqual(app.tags, ["Math Class"]);
   await app.list.children[0].children[1].onclick();
   assert.deepEqual(app.tags, []);
 });
@@ -68,8 +68,25 @@ test("invalid and duplicate tags are rejected", async () => {
   app.input.value = "a/b";
   await app.form.onsubmit({ preventDefault() {} });
   assert.match(app.input.validity, /letters/);
-  app.input.value = "MATH";
+  app.input.value = "math";
   await app.form.onsubmit({ preventDefault() {} });
   assert.match(app.input.validity, /already joined/);
   assert.deepEqual(app.tags, ["math"]);
+});
+
+test("tags with different capitalization are distinct", async () => {
+  const app = await setup(["math class"]);
+  app.input.value = "Math Class";
+  await app.form.onsubmit({ preventDefault() {} });
+  assert.deepEqual(app.tags, ["math class", "Math Class"]);
+});
+
+test("whitespace-only and overlong tags are rejected", async () => {
+  const app = await setup();
+  for (const tag of ["   ", "a".repeat(41)]) {
+    app.input.value = tag;
+    await app.form.onsubmit({ preventDefault() {} });
+    assert.match(app.input.validity, /letters/);
+  }
+  assert.deepEqual(app.tags, []);
 });

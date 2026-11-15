@@ -15,4 +15,4 @@ The Firebase CLI configuration deploys Firestore rules only; it does not deploy 
 
 ## Sharing with tags
 
-Join or leave tags in Settings, then select any of your tags when creating a plan. All members of any selected tag can see and delete that plan. Untagged plans remain private. Tags are case-insensitive and use letters, numbers, hyphens, or underscores. Anyone who knows a tag name can join it, so tags are not suitable for confidential information. Deploy the latest Firestore rules before using tag sharing.
+Join or leave tags in Settings, then select any of your tags when creating a plan. All members of any selected tag can see and delete that plan. Untagged plans remain private. Tags are case-sensitive and use letters, numbers, spaces, hyphens, or underscores; leading and trailing spaces are removed. Anyone who knows a tag name can join it, so tags are not suitable for confidential information. Deploy the latest Firestore rules before using tag sharing.

@@ -58,9 +58,9 @@ setupPlanner((client, user) => {
   form.onsubmit = async (event) => {
     event.preventDefault();
     if (busy) return;
-    const tag = input.value.trim().toLowerCase();
-    if (!/^[a-z0-9][a-z0-9_-]{0,39}$/.test(tag)) {
-      input.setCustomValidity("Use 1–40 letters, numbers, hyphens or underscores, starting with a letter or number.");
+    const tag = input.value.trim();
+    if (!/^[A-Za-z0-9][A-Za-z0-9 _-]{0,39}$/.test(tag)) {
+      input.setCustomValidity("Use 1–40 letters, numbers, spaces, hyphens or underscores, starting with a letter or number.");
       input.reportValidity();
       return;
     }
